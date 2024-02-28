@@ -17,3 +17,6 @@ tame-oauth = { version = "0.9", default-features = false, features = ["gcp"] }
 webbrowser = { version = "0.8.4", default-features = false }
 url = { version = "2.3", default-features = false }
 ureq = { version = "2", default-features = false, features = ["json", "tls", "http-interop"] }
+
+rustls = { version = "0.22.2" }
+rustls-native-certs  = { version = "0.7" }

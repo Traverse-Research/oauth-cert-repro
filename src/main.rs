@@ -2,7 +2,7 @@ use std::io::{BufRead, BufReader, Write};
 use std::net::TcpListener;
 
 use log::error;
-use oauth2::ureq::http_client;
+// use oauth2::ureq::http_client;
 use oauth2::{basic::BasicClient, TokenResponse};
 use oauth2::{
     AuthUrl, AuthorizationCode, ClientId, ClientSecret, CsrfToken, PkceCodeChallenge, RedirectUrl,
@@ -62,6 +62,65 @@ impl AuthScope {
             Self::AndroidAppPublisher => "BREDA_CI_GOOGLE_PLAY_PUBLISH_SERVICE_KEY",
         }
     }
+}
+
+use http::{header::CONTENT_TYPE, HeaderMap, HeaderValue, Method, StatusCode};
+use oauth2::{HttpRequest, HttpResponse};
+use std::sync::Arc;
+
+pub fn http_client(request: HttpRequest) -> Result<HttpResponse, oauth2::ureq::Error> {
+    let native_certs = rustls_native_certs::load_native_certs().unwrap();
+    // dbg!(native_certs);
+
+    let mut root_store = rustls::RootCertStore::empty();
+    root_store.add_parsable_certificates(native_certs);
+
+    let tls_config = rustls::ClientConfig::builder()
+        .with_root_certificates(root_store)
+        .with_no_client_auth();
+
+    let agent = ureq::builder().tls_config(Arc::new(tls_config)).build();
+
+    let mut req = if let Method::POST = request.method {
+        agent.post(&request.url.to_string())
+    } else {
+        agent.get(&request.url.to_string())
+    };
+
+    for (name, value) in request.headers {
+        if let Some(name) = name {
+            req = req.set(
+                &name.to_string(),
+                value.to_str().map_err(|_| {
+                    oauth2::ureq::Error::Other(format!(
+                        "invalid {} header value {:?}",
+                        name,
+                        value.as_bytes()
+                    ))
+                })?,
+            );
+        }
+    }
+
+    let response = if let Method::POST = request.method {
+        req.send_bytes(&request.body)
+    } else {
+        req.call()
+    }
+    .map_err(Box::new)?;
+
+    Ok(HttpResponse {
+        status_code: StatusCode::from_u16(response.status())
+            .map_err(|err| oauth2::ureq::Error::Http(err.into()))?,
+        headers: vec![(
+            CONTENT_TYPE,
+            HeaderValue::from_str(response.content_type())
+                .map_err(|err| oauth2::ureq::Error::Http(err.into()))?,
+        )]
+        .into_iter()
+        .collect::<HeaderMap>(),
+        body: response.into_string()?.as_bytes().into(),
+    })
 }
 
 // These are only really used to log in to the storage bucket
