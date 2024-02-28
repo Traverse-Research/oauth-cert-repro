@@ -10,7 +10,6 @@ use oauth2::{
 };
 use url::Url;
 
-
 pub struct AccessToken {
     secret: String,
 }
@@ -205,8 +204,22 @@ impl OAuthWebFlow {
                     (code, state)
                 };
 
-                let message =
-                    "<html><body>Thanks for logging in, you can close this tab now.</body></html>";
+                let exchange_code_response = self
+                    .client
+                    .exchange_code(code)
+                    .set_pkce_verifier(pkce_code_verifier)
+                    .request(http_client);
+
+                let message = if let Ok(_) = exchange_code_response {
+                    "<html><body>Thanks for logging in, you can close this tab now.</body></html>"
+                        .to_string()
+                } else {
+                    format!(
+                        "<html><body><code>{:?}</code>.</body></html>",
+                        exchange_code_response
+                    )
+                };
+
                 let response = format!(
                     "HTTP/1.1 200 OK\r\ncontent-length: {}\r\n\r\n{}",
                     message.len(),
@@ -214,12 +227,7 @@ impl OAuthWebFlow {
                 );
                 stream.write_all(response.as_bytes()).unwrap();
 
-                return self
-                    .client
-                    .exchange_code(code)
-                    .set_pkce_verifier(pkce_code_verifier)
-                    .request(http_client)
-                    .ok();
+                return exchange_code_response.ok();
             }
         }
 
@@ -318,5 +326,7 @@ impl OAuthWebFlow {
 }
 
 fn main() {
-    OAuthWebFlow::default().run(AuthScope::AssetStorage).unwrap();
+    OAuthWebFlow::default()
+        .run(AuthScope::AssetStorage)
+        .unwrap();
 }
