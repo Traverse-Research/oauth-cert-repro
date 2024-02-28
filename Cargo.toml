@@ -1,0 +1,19 @@
+[package]
+name = "samsung-mitm"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+http = { version = "0.2", default-features = false }
+
+log = { version = "0.4", default-features = false }
+oauth2 = { version = "4", default-features = false, features = ["ureq"] }
+
+serde_json = { version = "1", default-features = false, features = ["std"] }
+tame-oauth = { version = "0.9", default-features = false, features = ["gcp"] }
+
+webbrowser = { version = "0.8.4", default-features = false }
+url = { version = "2.3", default-features = false }
+ureq = { version = "2", default-features = false, features = ["json", "tls", "http-interop"] }
